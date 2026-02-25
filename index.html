@@ -25,7 +25,7 @@
         }
 
         body {
-            background: linear-gradient(135deg, #1a0a2e 0%, #2d1040 40%, #1a0020 100%);
+            background: linear-gradient(135deg, #87CEEB 0%, #6BB6FF 40%, #4DA6FF 100%);
             min-height: 100vh;
             overflow-x: hidden;
             font-family: 'Quicksand', sans-serif;
@@ -237,7 +237,7 @@
         /* Candles */
         .candles-row {
             display: flex;
-            gap: 20px;
+            gap: 50px;
             justify-content: center;
             margin-bottom: -4px;
             z-index: 5;
@@ -405,22 +405,22 @@
         .tier-top {
             width: 160px;
             height: 50px;
-            background: linear-gradient(135deg, #ff9de2 0%, #ff6bbb 50%, #ff9de2 100%);
+            background: linear-gradient(135deg, #87CEEB 0%, #6BB6FF 50%, #87CEEB 100%);
             border-radius: 8px 8px 0 0;
-            box-shadow: 0 -4px 20px rgba(255, 107, 157, 0.4);
+            box-shadow: 0 -4px 20px rgba(107, 182, 255, 0.4);
         }
 
         .tier-mid {
             width: 220px;
             height: 65px;
-            background: linear-gradient(135deg, #ffd6f0 0%, #ffaad6 50%, #ffd6f0 100%);
+            background: linear-gradient(135deg, #B0E0E6 0%, #87CEEB 50%, #B0E0E6 100%);
             margin-top: -2px;
         }
 
         .tier-bottom {
             width: 280px;
             height: 75px;
-            background: linear-gradient(135deg, #ff9de2 0%, #ff6bbb 50%, #ff9de2 100%);
+            background: linear-gradient(135deg, #87CEEB 0%, #6BB6FF 50%, #87CEEB 100%);
             margin-top: -2px;
             border-radius: 0 0 12px 12px;
         }
@@ -876,7 +876,7 @@
 
         // ============ CANDLES ============
         const candlesRow = document.getElementById('candlesRow');
-        const numCandles = 5;
+        const numCandles = 3;
         let candlesBlown = 0;
         let allBlown = false;
 
@@ -927,6 +927,93 @@
             }, delay);
         }
 
+        function playBlowSound() {
+            const ctx = getAudioCtx();
+            const duration = 1.8;
+            const bufferSize = ctx.sampleRate * duration;
+            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            // Create realistic air blowing/whooshing sound
+            for (let i = 0; i < bufferSize; i++) {
+                const progress = i / bufferSize;
+                const t = i / ctx.sampleRate;
+
+                // White noise for air turbulence
+                let airNoise = (Math.random() * 2 - 1) * 0.7;
+
+                // Add deeper wind tones (200-400Hz range for natural breath)
+                const deepWind = Math.sin(t * Math.PI * 2 * 250) * 0.25;
+
+                // Add mid-frequency whoosh (500-800Hz)
+                const whoosh = Math.sin(t * Math.PI * 2 * 600) * 0.2;
+
+                // Add subtle harmonics
+                const harmonic1 = Math.sin(t * Math.PI * 2 * 150) * 0.15;
+
+                // Dynamic envelope with natural breathing pattern
+                let envelope = 0;
+                if (progress < 0.15) {
+                    // Quick attack
+                    envelope = progress / 0.15;
+                } else if (progress < 0.7) {
+                    // Sustain with slight wavering
+                    envelope = 1 + Math.sin(t * 3) * 0.05;
+                } else {
+                    // Smooth decay
+                    envelope = Math.exp(-(progress - 0.7) / 0.3 * 4);
+                }
+
+                // Combine all components
+                data[i] = (airNoise + deepWind + whoosh + harmonic1) * envelope * 0.4;
+            }
+
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+
+            // Multi-stage filtering for natural sound
+            const highPass = ctx.createBiquadFilter();
+            highPass.type = 'highpass';
+            highPass.frequency.value = 300;
+            highPass.Q.value = 0.6;
+
+            const lowPass = ctx.createBiquadFilter();
+            lowPass.type = 'lowpass';
+            lowPass.frequency.value = 5000;
+            lowPass.Q.value = 0.8;
+
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(0.5, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+            source.connect(highPass);
+            highPass.connect(lowPass);
+            lowPass.connect(gain);
+            gain.connect(ctx.destination);
+            source.start();
+        }
+
+        function playGwakSound() {
+            const ctx = getAudioCtx();
+            // First gwak
+            for (let gwakNum = 0; gwakNum < 2; gwakNum++) {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                const startTime = ctx.currentTime + gwakNum * 0.35;
+                osc.frequency.setValueAtTime(250, startTime);
+                osc.frequency.exponentialRampToValueAtTime(150, startTime + 0.08);
+                osc.frequency.exponentialRampToValueAtTime(280, startTime + 0.16);
+                gain.gain.setValueAtTime(0.4, startTime);
+                gain.gain.linearRampToValueAtTime(0.6, startTime + 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
+                osc.start(startTime);
+                osc.stop(startTime + 0.25);
+            }
+        }
+
         function playWhoosh() {
             const ctx = getAudioCtx();
             const bufferSize = ctx.sampleRate * 0.3;
@@ -959,8 +1046,6 @@
                 gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
                 osc.start(t); osc.stop(t + 0.5);
             });
-            // Confetti pops
-            for (let i = 0; i < 8; i++) playConfettiPop(i * 150 + 600);
         }
 
         // ============ WIND ANIMATION ============
@@ -1050,8 +1135,9 @@
             const cx = rect.left + rect.width / 2;
             const cy = rect.top;
 
-            // Play whoosh
-            playWhoosh();
+            // Play gwak sound and blow sound
+            playGwakSound();
+            setTimeout(() => playBlowSound(), 150);
 
             // Wind effect from button toward candles
             const cakeRect = document.getElementById('candlesRow').getBoundingClientRect();
@@ -1077,14 +1163,12 @@
                             spawnSparkles(fw.left + fw.width / 2, fw.top);
                         }, 300);
                         candlesBlown++;
-                        playConfettiPop(100);
                     }
 
                     if (candlesBlown === numCandles) {
                         allBlown = true;
                         setTimeout(() => {
                             spawnConfetti(120);
-                            playCelebration();
                             document.getElementById('blowBtn').style.display = 'none';
                             document.getElementById('blownMsg').classList.add('show');
                             // Extra balloon burst
@@ -1099,7 +1183,6 @@
         document.addEventListener('click', (e) => {
             if (e.target.id === 'blowBtn') return;
             spawnSparkles(e.clientX, e.clientY);
-            playConfettiPop();
         });
     </script>
 </body>
